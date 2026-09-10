@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>{% block title %}picam timelapse{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="bar">
+    <div class="inner">
+        <h1>{% block heading %}{% endblock %}</h1>
+        <span class="pill {{ status.state }}" id="state-pill">{{ status.state }}</span>
+        {% if status.mock_camera %}
+        <span class="pill mock" title="picamera2 is not installed - test images only">mock camera</span>
+        {% endif %}
+    </div>
+</header>
+
+<div class="wrap">
+    <div class="msg error" id="message" hidden></div>
+    {% block content %}{% endblock %}
+    <footer class="note">picam_timelapse_app &middot; photos: <code>{{ status.photo_dir }}</code></footer>
+</div>
+
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,37 @@
+# systemd unit for picam_timelapse_app.
+#
+# Install with:
+#   sudo cp picam-timelapse.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now picam-timelapse
+#
+# Adjust User/Group and the paths below if you did not clone the project to
+# /home/pi/picam_timelapse_app.
+
+[Unit]
+Description=picam_timelapse_app - Raspberry Pi timelapse camera web interface
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=video
+WorkingDirectory=/home/pi/picam_timelapse_app
+
+# The venv must have been created with --system-site-packages so that the
+# apt-installed picamera2 / libcamera bindings are visible.
+Environment=PICAM_PHOTO_DIR=/home/pi/picam_timelapse_app/photos
+Environment=PICAM_LOG_LEVEL=INFO
+ExecStart=/home/pi/picam_timelapse_app/.venv/bin/waitress-serve \
+    --host=0.0.0.0 --port=8000 --threads=8 app:app
+
+Restart=on-failure
+RestartSec=5
+
+# The camera needs /dev/video* and /dev/dma_heap; keep the sandbox loose.
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

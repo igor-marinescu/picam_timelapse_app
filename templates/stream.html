@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Video Live Streaming &middot; picam timelapse{% endblock %}
+{% block heading %}Video Live Streaming{% endblock %}
+
+{% block content %}
+<div class="viewer" id="viewer">
+    <img id="live" src="{{ url_for('video_feed') }}" alt="Live view from the camera">
+</div>
+
+<div class="card">
+    <h2>Viewfinder</h2>
+    <p class="hint">Use this view to adjust the focus and the optical settings of the lens.
+        The stream is {{ stream_size }} MJPEG; the timelapse photos are captured at the
+        sensor's full still resolution.</p>
+    <dl class="kv">
+        <dt>Streaming for</dt>
+        <dd id="elapsed">0:00</dd>
+        <dt>Exposure</dt>
+        <dd>
+            {%- if settings.auto_exposure -%}
+                automatic
+            {%- else -%}
+                {{ settings.exposure_time_us }} &micro;s, gain {{ settings.analogue_gain }}
+            {%- endif -%}
+        </dd>
+        <dt>White balance</dt>
+        <dd>
+            {%- if settings.awb_mode == 'manual' -%}
+                manual (red {{ settings.red_gain }}, blue {{ settings.blue_gain }})
+            {%- else -%}
+                {{ settings.awb_mode }}
+            {%- endif -%}
+        </dd>
+        <dt>Saturation / sharpness</dt>
+        <dd>{{ settings.saturation }} / {{ settings.sharpness }}</dd>
+    </dl>
+</div>
+
+<div class="card">
+    <button type="button" class="btn primary" id="reload-stream">Reload the live image</button>
+    <button type="button" class="btn stop" id="stop-stream">Stop live streaming</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/stream.js') }}"></script>
+{% endblock %}

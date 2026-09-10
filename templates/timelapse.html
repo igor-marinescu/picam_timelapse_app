@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Timelapse Process &middot; picam timelapse{% endblock %}
+{% block heading %}Timelapse Process{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Progress</h2>
+    <p class="hint">The camera is taking photos. Leave this page open or close it &mdash;
+        the timelapse keeps running either way.</p>
+    <div class="stats">
+        <div class="stat">
+            <span class="k">Photos taken</span>
+            <span class="v" id="photo-count">{{ status.photo_count }}</span>
+        </div>
+        <div class="stat">
+            <span class="k">Running for</span>
+            <span class="v" id="elapsed">0:00</span>
+        </div>
+        <div class="stat">
+            <span class="k">Interval</span>
+            <span class="v" id="interval">{{ status.interval_seconds }} s</span>
+        </div>
+        <div class="stat">
+            <span class="k">Next photo in</span>
+            <span class="v" id="next-photo">&ndash;</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Details</h2>
+    <dl class="kv">
+        <dt>Started</dt>
+        <dd id="started">&ndash;</dd>
+        <dt>Last photo</dt>
+        <dd id="last-photo">&ndash;</dd>
+        <dt>Failed captures</dt>
+        <dd id="error-count">{{ status.error_count }}</dd>
+        <dt>Saving to</dt>
+        <dd>{{ status.photo_dir }}</dd>
+    </dl>
+</div>
+
+<div class="card">
+    <h2>Last picture</h2>
+    <p class="hint">Loads the most recently captured photo. Full resolution &mdash; it may
+        take a moment over Wi-Fi.</p>
+    <div class="viewer" id="viewer">
+        <div class="placeholder" id="viewer-placeholder">No picture loaded yet.</div>
+        <img id="last-image" alt="Most recent timelapse photo" hidden>
+    </div>
+    <button type="button" class="btn primary" id="show-last">Show last picture</button>
+</div>
+
+<div class="card">
+    <button type="button" class="btn stop" id="stop-timelapse">Stop timelapse</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/timelapse.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,12 @@
+# Python dependencies for picam_timelapse_app.
+#
+# NOTE: picamera2 is deliberately NOT listed here. On Raspberry Pi OS it must
+# come from the distribution package (`sudo apt install python3-picamera2`),
+# because it is built against the system libcamera. Installing it from pip
+# generally fails or produces a broken binding. See README.md.
+
+Flask>=3.0,<4.0
+
+# Production WSGI server. Pure Python, works on ARMv6 (Pi Zero W) and is
+# happy with the long-lived MJPEG responses this app serves.
+waitress>=3.0

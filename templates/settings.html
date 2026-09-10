@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Settings and Control &middot; picam timelapse{% endblock %}
+{% block heading %}Settings and Control{% endblock %}
+
+{% block content %}
+<form id="settings-form" autocomplete="off">
+    <div class="card">
+        <h2>Timelapse interval</h2>
+        <p class="hint">How often a photo is taken once the timelapse is started.</p>
+        <div class="field">
+            <label for="interval_seconds">
+                Interval
+                <span class="sub">seconds &mdash; {{ limits.interval[0] }} to {{ limits.interval[1] }}</span>
+            </label>
+            <input type="number" id="interval_seconds" name="interval_seconds"
+                   min="{{ limits.interval[0] }}" max="{{ limits.interval[1] }}" step="1"
+                   value="{{ settings.interval_seconds }}" required>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Camera settings</h2>
+        <p class="hint">Applied when the timelapse or the live stream is started. Start the
+            live stream to see the effect of a change immediately.</p>
+
+        <fieldset>
+            <legend>Exposure</legend>
+            <div class="field check">
+                <input type="checkbox" id="auto_exposure" name="auto_exposure"
+                       {% if settings.auto_exposure %}checked{% endif %}>
+                <label for="auto_exposure">
+                    Automatic exposure
+                    <span class="sub">The sensor chooses exposure time and gain.</span>
+                </label>
+            </div>
+            <div class="row two">
+                <div class="field">
+                    <label for="exposure_time_us">
+                        Exposure time
+                        <span class="sub">microseconds &mdash; {{ limits.exposure[0] }} to {{ limits.exposure[1] }}</span>
+                    </label>
+                    <input type="number" id="exposure_time_us" name="exposure_time_us"
+                           min="{{ limits.exposure[0] }}" max="{{ limits.exposure[1] }}" step="100"
+                           value="{{ settings.exposure_time_us }}">
+                </div>
+                <div class="field">
+                    <label for="analogue_gain">
+                        Gain
+                        <span class="sub">analogue gain &mdash; {{ limits.gain[0] }} to {{ limits.gain[1] }}</span>
+                    </label>
+                    <input type="number" id="analogue_gain" name="analogue_gain"
+                           min="{{ limits.gain[0] }}" max="{{ limits.gain[1] }}" step="0.1"
+                           value="{{ settings.analogue_gain }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>White balance</legend>
+            <div class="field">
+                <label for="awb_mode">Mode</label>
+                <select id="awb_mode" name="awb_mode">
+                    {% for key in awb_modes %}
+                    <option value="{{ key }}" {% if settings.awb_mode == key %}selected{% endif %}>
+                        {{ key|capitalize }}
+                    </option>
+                    {% endfor %}
+                    <option value="manual" {% if settings.awb_mode == 'manual' %}selected{% endif %}>
+                        Manual colour gains
+                    </option>
+                </select>
+            </div>
+            <div class="row two">
+                <div class="field">
+                    <label for="red_gain">
+                        Red gain
+                        <span class="sub">{{ limits.colour_gain[0] }} to {{ limits.colour_gain[1] }}</span>
+                    </label>
+                    <input type="number" id="red_gain" name="red_gain"
+                           min="{{ limits.colour_gain[0] }}" max="{{ limits.colour_gain[1] }}" step="0.1"
+                           value="{{ settings.red_gain }}">
+                </div>
+                <div class="field">
+                    <label for="blue_gain">
+                        Blue gain
+                        <span class="sub">{{ limits.colour_gain[0] }} to {{ limits.colour_gain[1] }}</span>
+                    </label>
+                    <input type="number" id="blue_gain" name="blue_gain"
+                           min="{{ limits.colour_gain[0] }}" max="{{ limits.colour_gain[1] }}" step="0.1"
+                           value="{{ settings.blue_gain }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Image</legend>
+            <div class="row two">
+                <div class="field">
+                    <label for="saturation">
+                        Colour saturation
+                        <span class="sub">1.0 = normal, 0.0 = greyscale</span>
+                    </label>
+                    <input type="number" id="saturation" name="saturation"
+                           min="{{ limits.saturation[0] }}" max="{{ limits.saturation[1] }}" step="0.1"
+                           value="{{ settings.saturation }}">
+                </div>
+                <div class="field">
+                    <label for="sharpness">
+                        Sharpness
+                        <span class="sub">1.0 = normal, 0.0 = none</span>
+                    </label>
+                    <input type="number" id="sharpness" name="sharpness"
+                           min="{{ limits.sharpness[0] }}" max="{{ limits.sharpness[1] }}" step="0.1"
+                           value="{{ settings.sharpness }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <button type="submit" class="btn primary" id="save-btn">Save settings</button>
+    </div>
+</form>
+
+<div class="card">
+    <h2>Control</h2>
+    <p class="hint">Settings are saved automatically before either action starts.</p>
+    <button type="button" class="btn go" id="start-timelapse">Start timelapse</button>
+    <button type="button" class="btn primary" id="start-stream">Start live streaming (viewfinder)</button>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}
