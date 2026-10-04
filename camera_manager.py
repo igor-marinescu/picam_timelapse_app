@@ -32,6 +32,9 @@ STATE_STREAMING = "streaming"
 STREAM_SIZE = (640, 480)  # live-view resolution; keep modest for the Pi Zero
 PHOTO_EXTENSION = ".jpg"
 PHOTO_TIMESTAMP_FORMAT = "%Y%m%d_%H%M%S"
+# Every timelapse run writes into its own subfolder of the photo directory,
+# named after the moment the run was started.
+SESSION_TIMESTAMP_FORMAT = PHOTO_TIMESTAMP_FORMAT
 
 
 class CameraError(RuntimeError):
@@ -104,6 +107,9 @@ class CameraManager:
         self._last_photo: Optional[str] = None
         self._last_error: Optional[str] = None
         self._active_interval: int = 0
+        # Absolute path of the subfolder the current (or most recent) run
+        # writes into; None until the first timelapse has been started.
+        self._session_dir: Optional[str] = None
 
         os.makedirs(self.photo_dir, exist_ok=True)
 
@@ -131,7 +137,12 @@ class CameraManager:
                 "next_photo_in": next_in,
                 "last_photo": self._last_photo,
                 "last_error": self._last_error,
-                "photo_dir": self.photo_dir,
+                # While a run is active this is the run's own subfolder, so the
+                # UI shows where the photos are actually landing.
+                "photo_dir": self._session_dir or self.photo_dir,
+                "session": (
+                    os.path.basename(self._session_dir) if self._session_dir else None
+                ),
             }
 
     # -- transitions -------------------------------------------------------
@@ -141,8 +152,10 @@ class CameraManager:
             cfg = self.settings.get()
             interval = int(cfg["interval_seconds"])
 
+            session_dir = self._make_session_dir()
             self._open_camera(still=True, cfg=cfg)
 
+            self._session_dir = session_dir
             self._stop_event.clear()
             self._started_at = time.time()
             self._photo_count = 0
@@ -159,7 +172,9 @@ class CameraManager:
                 daemon=True,
             )
             self._worker.start()
-            log.info("Timelapse started, interval=%ss", interval)
+            log.info(
+                "Timelapse started, interval=%ss, folder=%s", interval, session_dir
+            )
 
     def stop_timelapse(self) -> None:
         with self._lock:
@@ -179,7 +194,11 @@ class CameraManager:
             self._active_interval = 0
             self._started_at = None
             self._state = STATE_IDLE
-            log.info("Timelapse stopped after %s photo(s)", self._photo_count)
+            log.info(
+                "Timelapse stopped after %s photo(s) in %s",
+                self._photo_count,
+                self._session_dir,
+            )
 
     def start_stream(self) -> None:
         with self._lock:
@@ -370,17 +389,39 @@ class CameraManager:
         except Exception:
             log.exception("Error closing the camera")
 
+    def _make_session_dir(self) -> str:
+        """Create and return a fresh subfolder for one timelapse run."""
+        base = time.strftime(SESSION_TIMESTAMP_FORMAT)
+        candidate = os.path.join(self.photo_dir, base)
+        suffix = 1
+        # Two runs started within the same second must not share a folder.
+        while os.path.exists(candidate):
+            candidate = os.path.join(self.photo_dir, base + "_" + format(suffix, "02d"))
+            suffix += 1
+        try:
+            os.makedirs(candidate)
+        except OSError as exc:
+            raise CameraError(
+                "Could not create the photo folder " + candidate + ": " + str(exc)
+            ) from exc
+        return candidate
+
     def _photo_path(self) -> str:
         """Timestamped filename, made unique if a photo already exists."""
+        folder = self._session_dir or self.photo_dir
         base = time.strftime(PHOTO_TIMESTAMP_FORMAT)
-        candidate = os.path.join(self.photo_dir, base + PHOTO_EXTENSION)
+        candidate = os.path.join(folder, base + PHOTO_EXTENSION)
         suffix = 1
         while os.path.exists(candidate):
             candidate = os.path.join(
-                self.photo_dir, base + "_" + format(suffix, "02d") + PHOTO_EXTENSION
+                folder, base + "_" + format(suffix, "02d") + PHOTO_EXTENSION
             )
             suffix += 1
         return candidate
+
+    def _relative_photo(self, path: str) -> str:
+        """Path of a photo relative to the photo directory, URL style."""
+        return os.path.relpath(path, self.photo_dir).replace(os.sep, "/")
 
     def _capture_one(self) -> None:
         with self._lock:
@@ -393,7 +434,9 @@ class CameraManager:
             finally:
                 request.release()
             self._photo_count += 1
-            self._last_photo = os.path.basename(path)
+            # Relative to the photo directory, so the browser URL still
+            # resolves now that each run has its own subfolder.
+            self._last_photo = self._relative_photo(path)
             self._last_error = None
         log.info("Captured %s", path)
 

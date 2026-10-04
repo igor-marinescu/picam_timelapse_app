@@ -9,8 +9,9 @@ a phone or laptop on the same network. The live-streaming page acts as the
 viewfinder so you can focus the lens and check the optical settings before starting
 a run.
 
-Photos are written to a local folder with a timestamp filename. Assembling them into
-a video is deliberately **not** part of this application — see
+Each run writes its photos into its own timestamped subfolder, with a timestamp
+filename. Assembling them into a video is deliberately **not** part of this
+application — see
 [Turning the photos into a video](#turning-the-photos-into-a-video) for the one-liner
 you can run afterwards on a desktop machine.
 
@@ -49,7 +50,8 @@ you can run afterwards on a desktop machine.
 - **Configurable timelapse interval**, from 1 second to 24 hours.
 - **Camera controls**: exposure time, analogue gain, white balance, colour saturation
   and sharpness — changed from the browser, persisted across reboots.
-- **Photos saved with timestamp filenames** (`YYYYMMDD_HHMMSS.jpg`) to a local folder.
+- **Photos saved with timestamp filenames** (`YYYYMMDD_HHMMSS.jpg`), in a fresh
+  subfolder per run so separate timelapses never mix.
 - **Live progress page**: photo count, elapsed time, configured interval, countdown to
   the next shot, and a button to view the most recent photo.
 - **Runs headless as a systemd service**, starting automatically at boot.
@@ -98,9 +100,10 @@ either start the timelapse or start the live stream. Both buttons save the form 
 so you can never start a multi-hour run with an interval you thought you had changed.
 
 **Timelapse Process** — shows photos taken, elapsed time, the configured interval and
-a countdown to the next photo, plus the last photo's filename and the failed-capture
-count. *Show last picture* loads the most recent photo; if you leave it open it
-refreshes itself as new photos arrive. *Stop timelapse* returns to Idle.
+a countdown to the next photo, plus the last photo's filename, the folder this run is
+writing to, and the failed-capture count. *Show last picture* loads the most recent
+photo once and leaves it there — press the button again for a newer one. *Stop
+timelapse* returns to Idle.
 
 **Video Live Streaming** — full-width live image from the camera, a summary of the
 settings in effect, a *Reload the live image* button (for when a phone suspends the
@@ -322,7 +325,7 @@ variables control the process itself:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PICAM_PHOTO_DIR` | `<app dir>/photos` | Where photos are written. |
+| `PICAM_PHOTO_DIR` | `<app dir>/photos` | Parent folder; each run gets a subfolder of it. |
 | `PICAM_SETTINGS_FILE` | `<app dir>/settings.json` | Where settings are persisted. |
 | `PICAM_HOST` | `0.0.0.0` | Bind address (`python app.py` only). |
 | `PICAM_PORT` | `8000` | Port (`python app.py` only). |
@@ -344,19 +347,27 @@ service starts (add a `RequiresMountsFor=` line to the unit).
 
 ## Where the photos go
 
-Photos land in the photo directory as `YYYYMMDD_HHMMSS.jpg`, in the Pi's local
-timezone:
+Each timelapse run creates its own subfolder of the photo directory, named for the
+moment it was started, and its photos land inside it as `YYYYMMDD_HHMMSS.jpg` — both
+in the Pi's local timezone:
 
 ```
 photos/
-├── 20260906_114728.jpg
-├── 20260906_114730.jpg
-└── 20260906_114732.jpg
+├── 20260906_114728/          # one run
+│   ├── 20260906_114728.jpg
+│   ├── 20260906_114730.jpg
+│   └── 20260906_114732.jpg
+└── 20260906_131500/          # the next run
+    └── 20260906_131500.jpg
 ```
 
-The name sorts chronologically as plain text, which is exactly what `ffmpeg`'s glob
-input pattern needs. If two photos would land in the same second (possible with a
-1-second interval), a `_01`, `_02`, … counter is appended so nothing is overwritten.
+Both folder and file names sort chronologically as plain text, which is exactly what
+`ffmpeg`'s glob input pattern needs. If two photos would land in the same second
+(possible with a 1-second interval), a `_01`, `_02`, … counter is appended so nothing
+is overwritten; the same applies to two runs started within one second.
+
+Photos taken before this layout change stay directly in `photos/` and are still served
+correctly.
 
 Set the Pi's timezone before a run, or the filenames will not match local time:
 
@@ -378,7 +389,7 @@ desktop machine, not on the Pi:
 
 ```bash
 # 24 fps, H.264, scaled to 1080p
-ffmpeg -framerate 24 -pattern_type glob -i 'my-timelapse/*.jpg' \
+ffmpeg -framerate 24 -pattern_type glob -i 'my-timelapse/20260906_114728/*.jpg' \
        -vf "scale=1920:-2" -c:v libx264 -crf 20 -pix_fmt yuv420p timelapse.mp4
 ```
 
@@ -416,7 +427,7 @@ checking on the device from elsewhere.
 | `POST` | `/api/stream/stop` | Streaming → Idle. |
 | `GET` | `/video_feed` | MJPEG stream. Only valid while streaming. |
 | `GET` | `/api/last_photo` | Redirects to the most recent photo of the current run. |
-| `GET` | `/photos/<name>` | Serve one photo. |
+| `GET` | `/photos/<run>/<name>` | Serve one photo. The bare `/photos/<name>` form still works for photos taken before runs had their own subfolder. |
 
 Invalid transitions return **409** with an `error` message; camera failures return
 **500**. Both include the current `status` so a client can resynchronise.
@@ -453,7 +464,7 @@ picam_timelapse_app/
 │       ├── settings.js
 │       ├── timelapse.js
 │       └── stream.js
-├── photos/                   # Created at runtime (git-ignored)
+├── photos/                   # Created at runtime, one subfolder per run (git-ignored)
 └── settings.json             # Created at runtime (git-ignored)
 ```
 

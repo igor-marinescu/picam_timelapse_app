@@ -7,8 +7,10 @@
     const placeholder = Picam.el("viewer-placeholder");
     const showBtn = Picam.el("show-last");
 
-    let latest = null;      /* filename of the newest photo, from /api/status */
-    let displayed = null;   /* filename currently shown in the viewer */
+    /* Path of the newest photo, from /api/status. The viewer deliberately
+     * shows a still snapshot: it is only refreshed when the user asks for it
+     * again, never automatically as new photos arrive. */
+    let latest = null;
 
     /* The server reports elapsed time only every couple of seconds; tick the
      * counters locally in between so they do not look frozen. */
@@ -38,11 +40,6 @@
             Picam.showMessage("Last capture error: " + status.last_error, "warn");
         }
         render();
-
-        /* Keep an already-open preview up to date with each new photo. */
-        if (displayed && latest && latest !== displayed) {
-            load(latest);
-        }
     }
 
     function load(filename) {
@@ -53,7 +50,6 @@
             image.src = probe.src;
             image.hidden = false;
             placeholder.hidden = true;
-            displayed = filename;
             showBtn.disabled = false;
             showBtn.textContent = "Reload last picture";
         };
@@ -62,9 +58,12 @@
             showBtn.disabled = false;
             showBtn.textContent = "Show last picture";
         };
-        /* Cache-buster: the filename changes every shot, but a proxy could
+        /* The path is "<run folder>/<name>.jpg": escape the segments, but keep
+         * the separator as a real slash.
+         * Cache-buster: the filename changes every shot, but a proxy could
          * still serve a stale body after a manual reload. */
-        probe.src = "/photos/" + encodeURIComponent(filename) + "?t=" + Date.now();
+        const path = filename.split("/").map(encodeURIComponent).join("/");
+        probe.src = "/photos/" + path + "?t=" + Date.now();
     }
 
     showBtn.addEventListener("click", function () {
